@@ -1,6 +1,13 @@
 name: Deploy Apps Script
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - Code.gs
+      - appsscript.json
+      - .claspignore
   workflow_dispatch:
 
 permissions:
