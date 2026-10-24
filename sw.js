@@ -1,6 +1,37 @@
 /* A small app-shell cache; the Google Apps Script endpoint is never cached. */
-const CACHE_NAME = "dog-insulin-tracker-v4";
+const CACHE_NAME = "dog-insulin-tracker-v5";
 const APP_FILES = ["./", "./index.html", "./manifest.json", "./icon.svg"];
+
+const firebaseConfigText = new URL(self.location.href).searchParams.get("config");
+if (firebaseConfigText) {
+  importScripts("https://www.gstatic.com/firebasejs/11.7.0/firebase-app-compat.js");
+  importScripts("https://www.gstatic.com/firebasejs/11.7.0/firebase-messaging-compat.js");
+
+  firebase.initializeApp(JSON.parse(firebaseConfigText));
+  firebase.messaging().onBackgroundMessage((payload) => {
+    const data = payload.data || {};
+    self.registration.showNotification(data.title || "Инсулин-пёс", {
+      body: data.body || "Пора проверить дневник инъекций.",
+      tag: data.tag || "dog-insulin-reminder",
+      icon: "./icon.svg",
+      data: { url: data.url || "./" }
+    });
+  });
+
+  self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    const target = new URL(event.notification.data.url || "./", self.location.origin);
+    if (target.origin !== self.location.origin) return;
+    event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      for (const client of windows) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target.href);
+    }));
+  });
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_FILES)));

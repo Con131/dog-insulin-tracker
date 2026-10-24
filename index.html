@@ -68,6 +68,12 @@
     .eyebrow { font-size: 14px; letter-spacing: .1px; color: var(--md-sys-color-on-primary-container); font-weight: 650; }
     .timer-value { font-variant-numeric: tabular-nums; letter-spacing: -2.5px; font-size: clamp(46px, 12vw, 64px); font-weight: 760; line-height: 1.16; margin: 9px 0 6px; }
     .timer-message { color: var(--md-sys-color-on-primary-container); opacity: .82; font-size: 14px; margin: 0; max-width: 80%; }
+    .timer-notification { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; }
+    .notification-button { min-height: 38px; padding: 8px 15px; background: rgba(255, 255, 255, .66); color: var(--md-sys-color-on-primary-container); }
+    .notification-button[hidden] { display: none; }
+    .notification-help { flex: 1 1 180px; margin: 0; font-size: 11px; line-height: 1.45; opacity: .8; }
+    .app-update { margin-top: 12px; }
+    .app-update-status { margin: 7px 0 0; font-size: 11px; line-height: 1.4; }
     .timer-card.due { background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); }
     .timer-card.due .eyebrow, .timer-card.due .timer-message, .timer-card.due .timer-value { color: var(--md-sys-color-on-error-container); }
     .notice { padding: 16px 18px; border-radius: var(--md-shape-corner-medium); margin: 0 0 18px; font-size: 13px; line-height: 1.6; }
@@ -202,14 +208,13 @@
     <section class="card" aria-labelledby="privacyTitle">
       <div class="section-heading"><h2 id="privacyTitle">Открыть дневник по ссылке</h2></div>
       <p style="font-size:14px;line-height:1.65;color:var(--md-sys-color-on-surface-variant);margin:0 0 18px">
-        Эта GitHub Pages страница общедоступна. <strong>Не вводите здесь данные об инъекциях.</strong>
-        В закрытой таблице прямой доступ останется ограниченным, но любой, у кого есть ссылка на Apps Script, сможет читать и менять дневник. Передавайте её только доверенным людям.
+        Введите секретный URL вашего Apps Script. Он хранится только в этом браузере. Таблица остаётся закрытой, но всякий, у кого есть этот URL, сможет читать и менять записи.
       </p>
       <div class="field">
         <label for="privateAppUrl">Секретная ссылка дневника Google Apps Script (/exec)</label>
         <input id="privateAppUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="url">
       </div>
-      <button class="primary" id="openPrivateApp" type="button" style="margin-top:14px">Открыть дневник</button>
+      <button class="primary" id="openPrivateApp" type="button" style="margin-top:14px">Подключить и открыть дневник</button>
       <p class="status" id="landingStatus" role="status" aria-live="polite"></p>
     </section>
     <aside class="notice setup legacy-notice" id="legacyCacheNotice" hidden>
@@ -226,21 +231,28 @@
       <div class="section-heading"><h2>Как настроить один раз</h2></div>
       <ol style="padding-left:22px;margin:0;color:var(--md-sys-color-on-surface-variant);font-size:13px;line-height:1.8">
         <li>Откройте свою таблицу → <strong>Расширения → Apps Script</strong>.</li>
-        <li>Вставьте содержимое <code>Code.gs</code>. Создайте HTML-файл с именем <code>index</code> и вставьте туда содержимое <code>index.html</code>.</li>
+        <li>Вставьте содержимое <code>Code.gs</code> и выполните функцию <code>setupTrackingSheet</code>.</li>
         <li>Запустите <code>setupTrackingSheet</code> и разрешите доступ к таблице.</li>
         <li>Нажмите <strong>Развернуть → Новое развертывание → Веб-приложение</strong>. Выберите «Выполнять от имени: Я», а доступ — <strong>Все, у кого есть ссылка</strong>.</li>
-        <li>Скопируйте URL <code>/exec</code>, вставьте выше и откройте дневник.</li>
+        <li>Скопируйте URL <code>/exec</code>, вставьте выше и откройте дневник. Интерфейс остаётся на GitHub Pages, чтобы PWA мог принимать push-уведомления.</li>
+        <li>Для уведомлений настройте Firebase Cloud Messaging и запустите функцию <code>setupPushNotifications</code>.</li>
       </ol>
       <p class="settings-help">Подробная инструкция по таблице, закрытию старых развертываний, обновлению и защите ссылки: <a href="https://github.com/Con131/dog-insulin-tracker#readme" target="_blank" rel="noopener">открыть полный мануал</a>.</p>
       <p class="settings-help"><strong>Ссылка работает как пароль.</strong> Не публикуйте её в открытом доступе. Таблицу отдельно оставьте с доступом «Ограниченный».</p>
     </section>
-    <p class="footer-note">Публичная страница не читает и не отправляет медицинские записи. Вводите данные только в закрытом Google-приложении.</p>
+    <p class="footer-note">GitHub Pages предоставляет PWA-интерфейс. Данные отправляются только в Apps Script и хранятся в закрытой Google Таблице.</p>
   </main>
   <main id="privateDiary" hidden>
     <section class="timer-card" id="timerCard" aria-live="polite" aria-label="Время после последней инъекции">
       <div class="eyebrow">До следующей инъекции</div>
       <div class="timer-value" id="timerValue">12:00:00</div>
       <p class="timer-message" id="timerMessage">Добавьте первую запись, чтобы запустить таймер</p>
+      <div class="timer-notification" id="timerNotification" hidden>
+        <button class="small-button notification-button" id="notificationButton" type="button">Включить уведомление</button>
+        <p class="notification-help" id="notificationHelp" aria-live="polite"></p>
+      </div>
+      <button class="small-button app-update" id="checkAppUpdate" type="button">Проверить обновления приложения</button>
+      <p class="app-update-status" id="appUpdateStatus" role="status" aria-live="polite"></p>
     </section>
 
     <section class="card" aria-labelledby="formTitle">
@@ -310,7 +322,22 @@
     <section class="card" id="settings">
       <details class="settings">
         <summary><span>Защита и хранение данных</span><span aria-hidden="true">⌄</span></summary>
-        <p class="settings-help">Таблица закрыта для прямого доступа по ссылке, но веб-приложение работает от имени владельца. Любой, кому известна ссылка на веб-приложение, может просматривать, добавлять и редактировать записи. Не публикуйте ссылку; чтобы отозвать доступ, архивируйте развертывание и создайте новое.</p>
+        <p class="settings-help">Таблица закрыта для прямого доступа. URL Apps Script — секрет доступа: любой обладатель URL сможет читать и менять записи. Не публикуйте ссылку; для отзыва доступа архивируйте развертывание и создайте новое.</p>
+        <div class="field full" style="margin-top:14px">
+          <label for="diaryAppUrl">URL веб-приложения Apps Script</label>
+          <input id="diaryAppUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="url">
+        </div>
+        <div class="field full" style="margin-top:14px">
+          <label for="firebaseConfig">Firebase Web App config (JSON)</label>
+          <textarea id="firebaseConfig" maxlength="3000" spellcheck="false" autocomplete="off" placeholder='{"apiKey":"…","projectId":"…","messagingSenderId":"…","appId":"…"}'></textarea>
+        </div>
+        <div class="field full" style="margin-top:14px">
+          <label for="firebaseVapidKey">Firebase Web Push certificate (VAPID public key)</label>
+          <input id="firebaseVapidKey" type="text" maxlength="300" autocomplete="off" placeholder="Ключ из Firebase Console → Cloud Messaging">
+        </div>
+        <button class="small-button" id="saveSettings" type="button" style="margin-top:12px">Сохранить настройки</button>
+        <p class="settings-help">Firebase config и VAPID public key можно хранить здесь. Приватный ключ сервисного аккаунта сюда не вводите: он нужен только в Script Properties Apps Script.</p>
+        <p class="settings-help"><a href="https://github.com/Con131/dog-insulin-tracker#readme" target="_blank" rel="noopener">Подробная настройка push-уведомлений и iPhone/Android</a></p>
       </details>
     </section>
     <p class="footer-note">Дневник помогает вести записи, но не заменяет рекомендации ветеринарного врача. Дозировку определяет только ваш ветеринар.</p>
@@ -323,23 +350,35 @@
       // Все данные приложения, включая очередь на отправку, хранятся локально.
       const KEYS = {
         appUrl: "dogInsulin.privateAppUrl.v1",
+        firebaseConfig: "dogInsulin.firebaseConfig.v1",
+        vapidKey: "dogInsulin.firebaseVapidKey.v1",
         author: "dogInsulin.author.v1",
         entries: "dogInsulin.entries.v1",
-        pending: "dogInsulin.pending.v1"
+        pending: "dogInsulin.pending.v1",
+        notificationsEnabled: "dogInsulin.notificationsEnabled.v1",
+        pushToken: "dogInsulin.pushToken.v1"
       };
-      const PRIVATE_APP = Boolean(window.google && window.google.script && window.google.script.run);
+      const configuredAppUrl = localStorage.getItem(KEYS.appUrl) || "";
+      let PRIVATE_APP = Boolean(configuredAppUrl);
       document.getElementById("publicLanding").hidden = PRIVATE_APP;
       document.getElementById("privateDiary").hidden = !PRIVATE_APP;
+      document.getElementById("timerNotification").hidden = !PRIVATE_APP;
       const form = document.getElementById("injectionForm");
       const list = document.getElementById("historyList");
       const status = document.getElementById("formStatus");
       const saveButton = document.getElementById("saveButton");
       const refreshButton = document.getElementById("refreshButton");
       const privateAppUrlInput = document.getElementById("privateAppUrl");
-      let entries = PRIVATE_APP ? readStorage(KEYS.entries, []) : [];
-      let pending = PRIVATE_APP ? readStorage(KEYS.pending, []) : [];
+      const diaryAppUrlInput = document.getElementById("diaryAppUrl");
+      const firebaseConfigInput = document.getElementById("firebaseConfig");
+      const firebaseVapidKeyInput = document.getElementById("firebaseVapidKey");
+      let entries = readStorage(KEYS.entries, []);
+      let pending = readStorage(KEYS.pending, []);
       let busy = false;
       let editingId = "";
+      let firebaseMessaging = null;
+      let firebaseServiceWorker = null;
+      let foregroundMessageHandlerAdded = false;
 
       function readStorage(key, fallback) {
         try {
@@ -495,16 +534,212 @@
         message.textContent = `С последней инъекции: ${new Date(timestamp).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
       }
 
-      function callPrivateServer(method, argument) {
+      function notificationPermission() {
+        return "Notification" in window ? Notification.permission : "unsupported";
+      }
+
+      function isUninstalledAppleMobile() {
+        const appleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const installed = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+        return appleMobile && !installed;
+      }
+
+      function updateNotificationControls() {
+        if (!PRIVATE_APP) return;
+        const button = document.getElementById("notificationButton");
+        const help = document.getElementById("notificationHelp");
+        const permission = notificationPermission();
+        const enabled = localStorage.getItem(KEYS.notificationsEnabled) === "true";
+
+        if (permission === "unsupported") {
+          button.hidden = true;
+          help.textContent = "Этот браузер не поддерживает Web Push.";
+        } else if (permission === "denied") {
+          button.hidden = true;
+          help.textContent = "Уведомления запрещены. Разрешите их в настройках сайта и устройства.";
+        } else {
+          button.hidden = false;
+          button.textContent = enabled && permission === "granted" ? "Отключить push" : "Включить push-уведомления";
+          help.textContent = enabled && permission === "granted"
+            ? "Push приходит при закрытом приложении. Устройство должно иметь интернет."
+            : "Для фонового уведомления нужны Firebase, разрешение и установленное PWA.";
+        }
+      }
+
+      function firebaseConfig() {
+        try {
+          const config = JSON.parse(localStorage.getItem(KEYS.firebaseConfig) || "{}");
+          if (!config.apiKey || !config.projectId || !config.messagingSenderId || !config.appId) {
+            throw new Error("Сначала укажите Firebase Web App config в разделе «Защита и хранение данных».");
+          }
+          return config;
+        } catch (error) {
+          if (error instanceof SyntaxError) throw new Error("Firebase Web App config должен быть корректным JSON.");
+          throw error;
+        }
+      }
+
+      function loadScript(src) {
         return new Promise((resolve, reject) => {
-          if (!PRIVATE_APP) return reject(new Error("Откройте дневник по личной ссылке Google Apps Script."));
-          const runner = google.script.run
-            .withSuccessHandler(resolve)
-            .withFailureHandler((error) => reject(new Error(error && error.message ? error.message : "Google не выполнил запрос.")));
-          if (method === "getEntries") runner.getEntries();
-          else if (method === "saveEntry") runner.saveEntry(argument);
-          else reject(new Error("Неизвестная операция дневника."));
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Не удалось загрузить Firebase SDK. Проверьте подключение к интернету."));
+          document.head.append(script);
         });
+      }
+
+      async function messagingSetup() {
+        if (!window.isSecureContext || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+          throw new Error("Web Push недоступен. Откройте HTTPS-сайт в поддерживаемом браузере.");
+        }
+        const config = firebaseConfig();
+        const vapidKey = localStorage.getItem(KEYS.vapidKey) || "";
+        if (!vapidKey) throw new Error("Добавьте Firebase Web Push certificate (VAPID public key) в настройках.");
+
+        if (!window.firebase) {
+          await loadScript("https://www.gstatic.com/firebasejs/11.7.0/firebase-app-compat.js");
+          await loadScript("https://www.gstatic.com/firebasejs/11.7.0/firebase-messaging-compat.js");
+        }
+        if (!firebase.apps.length) firebase.initializeApp(config);
+        const supported = await firebase.messaging.isSupported();
+        if (!supported) throw new Error("Firebase Web Push не поддерживается этим браузером.");
+
+        const workerUrl = new URL("./sw.js", location.href);
+        workerUrl.searchParams.set("config", JSON.stringify(config));
+        firebaseServiceWorker = await navigator.serviceWorker.register(workerUrl.href, { scope: "./" });
+        await navigator.serviceWorker.ready;
+        firebaseMessaging = firebase.messaging();
+        return { messaging: firebaseMessaging, registration: firebaseServiceWorker, vapidKey };
+      }
+
+      async function registerPushToken(setup) {
+        if (!setup) setup = await messagingSetup();
+        const token = await setup.messaging.getToken({
+          vapidKey: setup.vapidKey,
+          serviceWorkerRegistration: setup.registration
+        });
+        if (!token) throw new Error("Firebase не выдал push-токен. Проверьте VAPID и разрешения.");
+        await callPrivateServer("registerPush", token);
+        localStorage.setItem(KEYS.pushToken, token);
+        if (!foregroundMessageHandlerAdded) {
+          setup.messaging.onMessage((payload) => {
+            const notification = payload.notification || payload.data || {};
+            setup.registration.showNotification(notification.title || "Инсулин-пёс", {
+              body: notification.body || "Пора проверить дневник инъекций.",
+              tag: notification.tag || "dog-insulin-reminder",
+              data: { url: notification.url || location.href },
+              icon: "./icon.svg"
+            });
+          });
+          foregroundMessageHandlerAdded = true;
+        }
+      }
+
+      async function unregisterPushToken() {
+        const token = localStorage.getItem(KEYS.pushToken);
+        if (token) await callPrivateServer("unregisterPush", token);
+        if (!firebaseMessaging) await messagingSetup();
+        if (firebaseMessaging) await firebaseMessaging.deleteToken();
+        localStorage.removeItem(KEYS.pushToken);
+      }
+
+      document.getElementById("notificationButton").addEventListener("click", async () => {
+        const button = document.getElementById("notificationButton");
+        const help = document.getElementById("notificationHelp");
+        button.disabled = true;
+        try {
+          if (localStorage.getItem(KEYS.notificationsEnabled) === "true" && notificationPermission() === "granted") {
+            await unregisterPushToken();
+            localStorage.setItem(KEYS.notificationsEnabled, "false");
+            help.textContent = "Push-уведомления отключены на этом устройстве.";
+            updateNotificationControls();
+            return;
+          }
+          if (notificationPermission() === "unsupported") throw new Error("Этот браузер не поддерживает Web Push.");
+          if (isUninstalledAppleMobile()) {
+            throw new Error("На iPhone/iPad сначала добавьте сайт на экран «Домой» и откройте его как приложение.");
+          }
+          const permission = notificationPermission() === "granted"
+            ? "granted"
+            : await Notification.requestPermission();
+          if (permission !== "granted") throw new Error("Разрешение не выдано. Разрешите уведомления в настройках браузера.");
+
+          const setup = await messagingSetup();
+          await registerPushToken(setup);
+          localStorage.setItem(KEYS.notificationsEnabled, "true");
+          updateNotificationControls();
+          help.textContent = "Push включён. Уведомление придёт и при закрытом приложении.";
+        } catch (error) {
+          console.error("Не удалось настроить push-уведомления:", error);
+          help.textContent = error.message;
+          setStatus(error.message, true);
+        } finally {
+          button.disabled = false;
+          updateNotificationControls();
+        }
+      });
+
+      document.getElementById("checkAppUpdate").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        const message = document.getElementById("appUpdateStatus");
+        button.disabled = true;
+        message.textContent = "Проверяем актуальную версию…";
+        try {
+          const updateUrl = new URL(location.href);
+          updateUrl.searchParams.set("update-check", String(Date.now()));
+          const response = await fetch(updateUrl.href, { cache: "no-store" });
+          if (!response.ok) throw new Error(`Сайт вернул HTTP ${response.status}.`);
+          const page = await response.text();
+          if (!page.includes('id="privateDiary"')) throw new Error("Не удалось проверить страницу приложения.");
+          const registration = await navigator.serviceWorker.getRegistration("./");
+          if (registration) await registration.update();
+          message.textContent = "Приложение обновлено. Перезапускаем…";
+          window.setTimeout(() => window.location.reload(), 250);
+        } catch (error) {
+          console.error("Не удалось обновить PWA:", error);
+          message.textContent = `Обновление недоступно: ${error.message}`;
+          button.disabled = false;
+        }
+      });
+
+      function callPrivateServer(method, argument) {
+        if (!PRIVATE_APP) return Promise.reject(new Error("Сначала укажите URL веб-приложения Apps Script."));
+        const apiUrl = localStorage.getItem(KEYS.appUrl);
+        if (method === "getEntries") {
+          return new Promise((resolve, reject) => {
+            const callbackName = `diaryJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            const url = new URL(apiUrl);
+            url.searchParams.set("action", "getEntries");
+            url.searchParams.set("callback", callbackName);
+            const script = document.createElement("script");
+            const timeout = setTimeout(() => finish(new Error("Истекло время ожидания Google Таблицы.")), 20000);
+            const finish = (error, result) => {
+              clearTimeout(timeout);
+              delete window[callbackName];
+              script.remove();
+              if (error) reject(error);
+              else resolve(result);
+            };
+            window[callbackName] = (result) => finish(null, result);
+            script.onerror = () => finish(new Error("Не удалось получить данные из Apps Script. Проверьте URL и доступ к веб-приложению."));
+            script.src = url.href;
+            document.head.append(script);
+          });
+        }
+        if (method !== "saveEntry" && method !== "registerPush" && method !== "unregisterPush") {
+          return Promise.reject(new Error("Неизвестная операция дневника."));
+        }
+        const body = method === "saveEntry"
+          ? { action: method, record: argument }
+          : { action: method, token: argument };
+        return fetch(apiUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(body)
+        }).then(() => ({ ok: true, id: argument && argument.id }));
       }
 
       async function refreshFromSheet() {
@@ -571,18 +806,75 @@
       });
       document.getElementById("injectedAt").value = localDateTimeValue(new Date());
       privateAppUrlInput.value = localStorage.getItem(KEYS.appUrl) || "";
+      diaryAppUrlInput.value = localStorage.getItem(KEYS.appUrl) || "";
+      firebaseConfigInput.value = localStorage.getItem(KEYS.firebaseConfig) || "";
+      firebaseVapidKeyInput.value = localStorage.getItem(KEYS.vapidKey) || "";
+
+      function validateAppUrl(raw) {
+        const url = new URL(raw);
+        if (url.protocol !== "https:" || url.hostname !== "script.google.com" ||
+            !/^\/macros\/s\/[^/]+\/exec\/?$/.test(url.pathname)) {
+          throw new Error("Введите полный URL веб-приложения Apps Script, заканчивающийся на /exec.");
+        }
+        return url.href;
+      }
+
+      function showDiary() {
+        PRIVATE_APP = true;
+        document.getElementById("publicLanding").hidden = true;
+        document.getElementById("privateDiary").hidden = false;
+        document.getElementById("timerNotification").hidden = false;
+        updateNotificationControls();
+        render();
+        refreshFromSheet()
+          .then(() => sendPending())
+          .catch((error) => setStatus(`Не удалось загрузить таблицу: ${error.message}. Локальная история сохранена.`, true));
+      }
+
       document.getElementById("openPrivateApp").addEventListener("click", () => {
-        const raw = privateAppUrlInput.value.trim();
         try {
-          const url = new URL(raw);
-          if (url.protocol !== "https:" || url.hostname !== "script.google.com" || !url.pathname.endsWith("/exec")) {
-            throw new Error();
-          }
-          localStorage.setItem(KEYS.appUrl, url.href);
-          window.location.assign(url.href);
-        } catch (_) {
-          document.getElementById("landingStatus").textContent = "Введите полный личный URL Google Apps Script, который заканчивается на /exec.";
+          const appUrl = validateAppUrl(privateAppUrlInput.value.trim());
+          localStorage.setItem(KEYS.appUrl, appUrl);
+          diaryAppUrlInput.value = appUrl;
+          showDiary();
+        } catch (error) {
+          document.getElementById("landingStatus").textContent = error.message;
           document.getElementById("landingStatus").classList.add("error");
+        }
+      });
+
+      document.getElementById("saveSettings").addEventListener("click", async () => {
+        try {
+          const appUrl = validateAppUrl(diaryAppUrlInput.value.trim());
+          let config;
+          try {
+            config = JSON.parse(firebaseConfigInput.value || "{}");
+          } catch (_) {
+            throw new Error("Firebase Web App config должен быть корректным JSON.");
+          }
+          if (!config || typeof config !== "object" || Array.isArray(config)) {
+            throw new Error("Firebase Web App config должен быть JSON-объектом.");
+          }
+          if (Object.keys(config).length &&
+              (!config.apiKey || !config.projectId || !config.messagingSenderId || !config.appId)) {
+            throw new Error("В Firebase config должны быть apiKey, projectId, messagingSenderId и appId.");
+          }
+          localStorage.setItem(KEYS.appUrl, appUrl);
+          localStorage.setItem(KEYS.firebaseConfig, JSON.stringify(config));
+          localStorage.setItem(KEYS.vapidKey, firebaseVapidKeyInput.value.trim());
+          privateAppUrlInput.value = appUrl;
+          setStatus("Настройки сохранены на этом устройстве.", false);
+          if (!PRIVATE_APP) showDiary();
+          else {
+            await refreshFromSheet();
+            if (localStorage.getItem(KEYS.notificationsEnabled) === "true" &&
+                notificationPermission() === "granted") {
+              await registerPushToken();
+            }
+            setStatus("Настройки сохранены. История обновлена.", false);
+          }
+        } catch (error) {
+          setStatus(error.message, true);
         }
       });
 
@@ -700,14 +992,27 @@
       });
       window.addEventListener("online", () => sendPending());
       if (PRIVATE_APP) {
+        updateNotificationControls();
         setInterval(updateTimer, 1000);
         render();
         refreshFromSheet()
           .then(() => sendPending())
           .catch((error) => setStatus(`Не удалось загрузить вашу личную таблицу: ${error.message}`, true));
+        if (localStorage.getItem(KEYS.notificationsEnabled) === "true" && notificationPermission() === "granted") {
+          registerPushToken().catch((error) => {
+            console.error("Не удалось обновить push-подписку:", error);
+            document.getElementById("notificationHelp").textContent = `Push не подключён: ${error.message}`;
+          });
+        }
       }
-      if (!PRIVATE_APP && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
-        window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch((error) => console.warn("PWA offline worker is unavailable:", error)));
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        window.addEventListener("load", () => {
+          let workerUrl = new URL("./sw.js", location.href);
+          const savedConfig = localStorage.getItem(KEYS.firebaseConfig);
+          if (savedConfig) workerUrl.searchParams.set("config", savedConfig);
+          navigator.serviceWorker.register(workerUrl.href)
+            .catch((error) => console.warn("PWA offline worker is unavailable:", error));
+        });
       }
       initializeLegacyCacheNotice();
     })();
