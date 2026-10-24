@@ -1,19 +1,22 @@
 /**
- * Backend for the dog insulin tracker.
+ * Private Google Apps Script backend for the insulin diary.
  *
- * Attach this script to the destination spreadsheet (Extensions > Apps Script),
- * run setupTrackingSheet() once, then deploy it as a web app.
+ * In Apps Script, add an HTML file named "index" and paste index.html into it.
+ * Deploy the web app as the owner with access set to "Only myself".
  *
- * ContentService does not expose arbitrary Access-Control-Allow-Origin headers.
- * GET therefore supports JSONP for browsers on GitHub Pages. The browser sends
- * POST as text/plain (a CORS "simple request"), and verifies writes by reading
- * the record back. IDs make retrying an offline queue safe and idempotent.
+ * There is deliberately no public JSON/JSONP endpoint. doGet serves the UI;
+ * reads and writes are google.script.run RPC calls protected by the deployment
+ * access rule and execute as the signed-in owner.
  */
-// ID from the spreadsheet the user shared. This lets the script be deployed as
-// either a spreadsheet-bound project or a standalone Apps Script project.
 const SPREADSHEET_ID = '10HzH-zEU-aO1zhxWQqrTx93quhEtbF1nBT7pZuZAT04';
 const SHEET_NAME = 'Инъекции';
 const HEADERS = ['ID', 'Дата и время (ISO)', 'Доза (ЕД)', 'Сахар (ммоль/л)', 'Зона', 'Приём пищи', 'Примечание'];
+
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('Инсулин-пёс — личный дневник')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+}
 
 function setupTrackingSheet() {
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -26,82 +29,65 @@ function setupTrackingSheet() {
   return `Готово: лист «${SHEET_NAME}» подготовлен.`;
 }
 
-function doPost(e) {
-  try {
-    if (!e || !e.postData || !e.postData.contents) {
-      throw new Error('Пустое тело запроса.');
-    }
-    const record = JSON.parse(e.postData.contents);
-    validateRecord_(record);
-
-    const lock = LockService.getScriptLock();
-    lock.waitLock(10000);
-    try {
-      const sheet = getSheet_();
-      const existingIds = sheet.getLastRow() > 1
-        ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues().flat()
-        : [];
-      if (existingIds.indexOf(record.id) === -1) {
-        sheet.appendRow([
-          safeCell_(record.id),
-          record.injectedAt,
-          record.dose,
-          record.glucose === '' || record.glucose == null ? '' : record.glucose,
-          safeCell_(record.site),
-          safeCell_(record.meal),
-          safeCell_(record.note || '')
-        ]);
-      }
-    } finally {
-      lock.releaseLock();
-    }
-    return jsonOutput_({ ok: true, id: record.id });
-  } catch (error) {
-    return jsonOutput_({ ok: false, error: String(error.message || error) });
-  }
+/**
+ * Called only through authenticated google.script.run in the private app.
+ * The deployment must remain restricted to its owner.
+ */
+function getEntries() {
+  const sheet = getSheet_();
+  const rows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS.length).getValues()
+    : [];
+  return rows.map(function (row) {
+    return {
+      id: String(row[0]),
+      injectedAt: normalizeDate_(row[1]),
+      dose: Number(row[2]),
+      glucose: row[3] === '' ? '' : Number(row[3]),
+      site: String(row[4]),
+      meal: String(row[5]),
+      note: String(row[6] || '')
+    };
+  }).filter(function (record) {
+    return record.id && record.injectedAt;
+  }).sort(function (a, b) {
+    return new Date(b.injectedAt).getTime() - new Date(a.injectedAt).getTime();
+  });
 }
 
-function doGet(e) {
+/**
+ * Add one record. IDs make retries safe when a client reconnects after a timeout.
+ */
+function addEntry(record) {
+  validateRecord_(record);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
   try {
     const sheet = getSheet_();
-    const rows = sheet.getLastRow() > 1
-      ? sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS.length).getValues()
+    const existingIds = sheet.getLastRow() > 1
+      ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues().flat()
       : [];
-    const records = rows.map(function (row) {
-      return {
-        id: String(row[0]),
-        injectedAt: normalizeDate_(row[1]),
-        dose: Number(row[2]),
-        glucose: row[3] === '' ? '' : Number(row[3]),
-        site: String(row[4]),
-        meal: String(row[5]),
-        note: String(row[6] || '')
-      };
-    }).filter(function (record) {
-      return record.id && record.injectedAt;
-    }).sort(function (a, b) {
-      return new Date(b.injectedAt).getTime() - new Date(a.injectedAt).getTime();
-    });
-
-    const callback = e && e.parameter && e.parameter.callback;
-    if (callback) {
-      if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callback)) {
-        throw new Error('Недопустимое имя JSONP callback.');
-      }
-      return ContentService.createTextOutput(
-        callback + '(' + JSON.stringify({ entries: records }) + ');'
-      ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    if (existingIds.indexOf(record.id) === -1) {
+      sheet.appendRow([
+        safeCell_(record.id),
+        record.injectedAt,
+        record.dose,
+        record.glucose === '' || record.glucose == null ? '' : record.glucose,
+        safeCell_(record.site),
+        safeCell_(record.meal),
+        safeCell_(record.note || '')
+      ]);
     }
-    return jsonOutput_({ entries: records });
-  } catch (error) {
-    return jsonOutput_({ error: String(error.message || error), entries: [] });
+    return { ok: true, id: record.id };
+  } finally {
+    lock.releaseLock();
   }
 }
 
 function getSheet_() {
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = spreadsheet.getSheetByName(SHEET_NAME);
-  if (!sheet) throw new Error('Лист не найден. Сначала запустите setupTrackingSheet().');
+  if (!sheet) throw new Error('Лист «Инъекции» не найден. Сначала запустите setupTrackingSheet().');
   return sheet;
 }
 
@@ -133,13 +119,7 @@ function normalizeDate_(value) {
   return isNaN(date.getTime()) ? '' : date.toISOString();
 }
 
-// Prefix user-provided text beginning with spreadsheet formula characters.
 function safeCell_(value) {
   const text = String(value == null ? '' : value);
   return /^[=+\-@]/.test(text) ? "'" + text : text;
-}
-
-function jsonOutput_(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
 }
