@@ -157,18 +157,44 @@
       </div>
     </div>
   </header>
-  <main>
+  <main id="publicLanding" hidden>
+    <section class="timer-card">
+      <div class="eyebrow">Личный дневник</div>
+      <div class="timer-value" style="font-size:clamp(34px, 9vw, 48px)">Записи под защитой</div>
+      <p class="timer-message">Откройте приложение через Google Apps Script. Доступ к нему и таблице будет только у вашего аккаунта Google.</p>
+    </section>
+    <section class="card" aria-labelledby="privacyTitle">
+      <div class="section-heading"><h2 id="privacyTitle">Безопасное подключение</h2></div>
+      <p style="font-size:14px;line-height:1.65;color:var(--md-sys-color-on-surface-variant);margin:0 0 18px">
+        Эта GitHub Pages страница общедоступна. <strong>Не вводите здесь данные об инъекциях.</strong>
+        После настройки таблицы личный дневник будет открываться на Google и доступен только вам.
+      </p>
+      <div class="field">
+        <label for="privateAppUrl">Вставьте личную ссылку Google Apps Script (/exec)</label>
+        <input id="privateAppUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="url">
+      </div>
+      <button class="primary" id="openPrivateApp" type="button" style="margin-top:14px">Открыть личный дневник</button>
+      <p class="status" id="landingStatus" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card">
+      <div class="section-heading"><h2>Как настроить один раз</h2></div>
+      <ol style="padding-left:22px;margin:0;color:var(--md-sys-color-on-surface-variant);font-size:13px;line-height:1.8">
+        <li>Откройте свою таблицу → <strong>Расширения → Apps Script</strong>.</li>
+        <li>Вставьте содержимое <code>Code.gs</code>. Создайте HTML-файл с именем <code>index</code> и вставьте туда содержимое <code>index.html</code>.</li>
+        <li>Запустите <code>setupTrackingSheet</code> и разрешите доступ к таблице.</li>
+        <li>Нажмите <strong>Развернуть → Новое развертывание → Веб-приложение</strong>. Выберите «Выполнять от имени: Я», а доступ — <strong>Только я</strong>.</li>
+        <li>Скопируйте URL <code>/exec</code>, вставьте выше и откройте личный дневник.</li>
+      </ol>
+      <p class="settings-help"><strong>Не включайте доступ «Все» или «Все, у кого есть аккаунт Google».</strong> Не публикуйте таблицу по ссылке. Если раньше создавали общедоступное развертывание, удалите его в «Управление развертываниями».</p>
+    </section>
+    <p class="footer-note">Публичная страница не читает и не отправляет медицинские записи. Вводите данные только в закрытом Google-приложении.</p>
+  </main>
+  <main id="privateDiary" hidden>
     <section class="timer-card" id="timerCard" aria-live="polite" aria-label="Время после последней инъекции">
       <div class="eyebrow">До следующей инъекции</div>
       <div class="timer-value" id="timerValue">12:00:00</div>
       <p class="timer-message" id="timerMessage">Добавьте первую запись, чтобы запустить таймер</p>
     </section>
-
-    <aside class="notice setup" id="setupNotice">
-      <strong>Подключите Google Таблицу</strong>, чтобы хранить историю и синхронизировать её между устройствами.
-      <a href="#settings">Открыть настройки</a> ·
-      <a href="https://github.com/Con131/dog-insulin-tracker#быстрый-запуск" target="_blank" rel="noopener">Инструкция по настройке</a>
-    </aside>
 
     <section class="card" aria-labelledby="formTitle">
       <div class="section-heading"><h2 id="formTitle">Новая инъекция</h2></div>
@@ -227,14 +253,9 @@
     </section>
 
     <section class="card" id="settings">
-      <details class="settings" id="settingsDetails">
-        <summary><span>Настройки подключения</span><span aria-hidden="true">⌄</span></summary>
-        <div class="field">
-          <label for="scriptUrl">URL веб-приложения Google Apps Script</label>
-          <input id="scriptUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="url">
-        </div>
-        <button class="small-button" id="saveSettings" type="button" style="margin-top:10px">Сохранить URL</button>
-        <p class="settings-help">Ссылка хранится только в localStorage этого браузера. Используйте URL, заканчивающийся на <code>/exec</code>. В Apps Script разверните веб-приложение с доступом «Все» (данные таблицы тогда доступны всем, у кого есть URL).</p>
+      <details class="settings">
+        <summary><span>Защита и хранение данных</span><span aria-hidden="true">⌄</span></summary>
+        <p class="settings-help">Дневник работает внутри Google Apps Script. Таблица доступна только аккаунту-владельцу, а передача данных выполняется через защищённый вызов Google Apps Script без публичного JSON API. Локальная копия нужна для мгновенного отображения и ожидания синхронизации.</p>
       </details>
     </section>
     <p class="footer-note">Дневник помогает вести записи, но не заменяет рекомендации ветеринарного врача. Дозировку определяет только ваш ветеринар.</p>
@@ -246,19 +267,21 @@
 
       // Все данные приложения, включая очередь на отправку, хранятся локально.
       const KEYS = {
-        url: "dogInsulin.scriptUrl.v1",
+        appUrl: "dogInsulin.privateAppUrl.v1",
         entries: "dogInsulin.entries.v1",
         pending: "dogInsulin.pending.v1"
       };
+      const PRIVATE_APP = Boolean(window.google && window.google.script && window.google.script.run);
+      document.getElementById("publicLanding").hidden = PRIVATE_APP;
+      document.getElementById("privateDiary").hidden = !PRIVATE_APP;
       const form = document.getElementById("injectionForm");
       const list = document.getElementById("historyList");
       const status = document.getElementById("formStatus");
       const saveButton = document.getElementById("saveButton");
       const refreshButton = document.getElementById("refreshButton");
-      const scriptUrlInput = document.getElementById("scriptUrl");
-      const setupNotice = document.getElementById("setupNotice");
-      let entries = readStorage(KEYS.entries, []);
-      let pending = readStorage(KEYS.pending, []);
+      const privateAppUrlInput = document.getElementById("privateAppUrl");
+      let entries = PRIVATE_APP ? readStorage(KEYS.entries, []) : [];
+      let pending = PRIVATE_APP ? readStorage(KEYS.pending, []) : [];
       let busy = false;
 
       function readStorage(key, fallback) {
@@ -278,18 +301,6 @@
         } catch (error) {
           setStatus("Не удалось сохранить запись на устройстве. Проверьте свободное место.", true);
           throw error;
-        }
-      }
-
-      function endpoint() {
-        const raw = localStorage.getItem(KEYS.url) || "";
-        if (!raw) return "";
-        try {
-          const url = new URL(raw);
-          if (url.protocol !== "https:" || url.hostname !== "script.google.com" || !url.pathname.endsWith("/exec")) return "";
-          return url.href;
-        } catch (_) {
-          return "";
         }
       }
 
@@ -337,7 +348,6 @@
           list.append(li);
         });
         updateTimer();
-        setupNotice.hidden = Boolean(endpoint());
       }
 
       function updateTimer() {
@@ -370,40 +380,21 @@
         message.textContent = `С последней инъекции: ${new Date(timestamp).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
       }
 
-      function jsonpRead() {
+      function callPrivateServer(method, argument) {
         return new Promise((resolve, reject) => {
-          const url = endpoint();
-          if (!url) return reject(new Error("Сначала укажите корректный URL веб-приложения в настройках."));
-          const callbackName = `__insulinCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-          const script = document.createElement("script");
-          const requestUrl = new URL(url);
-          const cleanup = () => {
-            clearTimeout(timer);
-            delete window[callbackName];
-            script.remove();
-          };
-          const timer = setTimeout(() => {
-            cleanup();
-            reject(new Error("Таблица не ответила. Проверьте соединение и URL."));
-          }, 15000);
-          window[callbackName] = (data) => {
-            cleanup();
-            if (!data || !Array.isArray(data.entries)) return reject(new Error(data && data.error ? data.error : "Сервер вернул неверный ответ."));
-            resolve(data.entries);
-          };
-          requestUrl.searchParams.set("callback", callbackName);
-          requestUrl.searchParams.set("_", String(Date.now()));
-          script.src = requestUrl.href;
-          script.onerror = () => {
-            cleanup();
-            reject(new Error("Google Apps Script не открыл URL. Проверьте полный адрес /exec и разверните веб-приложение с доступом «Все»."));
-          };
-          document.head.append(script);
+          if (!PRIVATE_APP) return reject(new Error("Откройте дневник по личной ссылке Google Apps Script."));
+          const runner = google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler((error) => reject(new Error(error && error.message ? error.message : "Google не выполнил запрос.")));
+          if (method === "getEntries") runner.getEntries();
+          else if (method === "addEntry") runner.addEntry(argument);
+          else reject(new Error("Неизвестная операция дневника."));
         });
       }
 
       async function refreshFromSheet() {
-        const remote = await jsonpRead();
+        const remote = await callPrivateServer("getEntries");
+        if (!Array.isArray(remote)) throw new Error("Google Таблица вернула неверный ответ.");
         const byId = new Map(entries.map((entry) => [entry.id, entry]));
         remote.forEach((entry) => {
           if (entry && entry.id) byId.set(entry.id, entry);
@@ -417,23 +408,19 @@
       }
 
       async function sendPending() {
-        const url = endpoint();
-        if (!url || !navigator.onLine || pending.length === 0 || busy) return;
+        if (!PRIVATE_APP || !navigator.onLine || pending.length === 0 || busy) return;
         busy = true;
         saveButton.classList.add("loading");
         saveButton.disabled = true;
         document.getElementById("saveLabel").textContent = "Синхронизация…";
         try {
-          // text/plain не вызывает CORS preflight. opaque-ответ проверяем повторным JSONP-чтением.
           for (const entry of pending.slice()) {
-            await fetch(url, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "text/plain;charset=utf-8" },
-              body: JSON.stringify(entry)
-            });
+            const result = await callPrivateServer("addEntry", entry);
+            if (!result || result.ok !== true || result.id !== entry.id) {
+              throw new Error(result && result.error ? result.error : "Google не подтвердил сохранение записи.");
+            }
           }
-          const ids = await refreshFromSheet();
+          await refreshFromSheet();
           const unsent = pending.length;
           setStatus(unsent ? "Запись сохранена на устройстве и ожидает подтверждения таблицы." : "Запись синхронизирована с Google Таблицей.", unsent > 0);
         } catch (error) {
@@ -448,28 +435,25 @@
       }
 
       document.getElementById("injectedAt").value = localDateTimeValue(new Date());
-      scriptUrlInput.value = localStorage.getItem(KEYS.url) || "";
-      document.getElementById("saveSettings").addEventListener("click", () => {
-        const raw = scriptUrlInput.value.trim();
-        if (raw) {
-          try {
-            const parsed = new URL(raw);
-            if (parsed.protocol !== "https:" || parsed.hostname !== "script.google.com" || !parsed.pathname.endsWith("/exec")) {
-              throw new Error();
-            }
-          } catch (_) {
-            setStatus("Укажите HTTPS URL веб-приложения Google Apps Script, заканчивающийся на /exec.", true);
-            return;
+      privateAppUrlInput.value = localStorage.getItem(KEYS.appUrl) || "";
+      document.getElementById("openPrivateApp").addEventListener("click", () => {
+        const raw = privateAppUrlInput.value.trim();
+        try {
+          const url = new URL(raw);
+          if (url.protocol !== "https:" || url.hostname !== "script.google.com" || !url.pathname.endsWith("/exec")) {
+            throw new Error();
           }
+          localStorage.setItem(KEYS.appUrl, url.href);
+          window.location.assign(url.href);
+        } catch (_) {
+          document.getElementById("landingStatus").textContent = "Введите полный личный URL Google Apps Script, который заканчивается на /exec.";
+          document.getElementById("landingStatus").classList.add("error");
         }
-        localStorage.setItem(KEYS.url, raw);
-        setStatus(raw ? "URL сохранён в этом браузере." : "URL подключения удалён.", false);
-        render();
-        if (raw && pending.length) sendPending();
       });
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (!PRIVATE_APP) return;
         if (!form.reportValidity()) return;
         const data = new FormData(form);
         const entry = {
@@ -500,7 +484,9 @@
         document.getElementById("injectedAt").value = localDateTimeValue(new Date());
         document.getElementById("site").value = "Холка";
         document.getElementById("meal").value = "Съела всё";
-        setStatus(endpoint() ? "Запись добавлена. Отправляем в Google Таблицу…" : "Запись сохранена на устройстве. Добавьте URL таблицы в настройках для синхронизации.", false);
+        setStatus(navigator.onLine
+          ? "Запись добавлена. Синхронизируем с вашей таблицей…"
+          : "Запись сохранена на этом устройстве и отправится после подключения к интернету.", false);
         await sendPending();
       });
 
@@ -519,10 +505,12 @@
         }
       });
       window.addEventListener("online", () => sendPending());
-      setInterval(updateTimer, 1000);
-      render();
-      if (endpoint()) refreshFromSheet().catch((error) => setStatus(`${error.message} Показаны локальные записи.`, true));
-      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      if (PRIVATE_APP) {
+        setInterval(updateTimer, 1000);
+        render();
+        refreshFromSheet().catch((error) => setStatus(`Не удалось загрузить вашу личную таблицу: ${error.message}`, true));
+      }
+      if (!PRIVATE_APP && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
         window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch((error) => console.warn("PWA offline worker is unavailable:", error)));
       }
     })();

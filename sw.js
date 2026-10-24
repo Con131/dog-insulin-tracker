@@ -1,5 +1,5 @@
 /* A small app-shell cache; the Google Apps Script endpoint is never cached. */
-const CACHE_NAME = "dog-insulin-tracker-v2";
+const CACHE_NAME = "dog-insulin-tracker-v3";
 const APP_FILES = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
