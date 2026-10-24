@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f8f4">
+  <meta name="description" content="Удобный дневник инъекций инсулина для вашей собаки.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Инсулин-пёс">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <title>Инсулин-пёс — дневник инъекций</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #19352d;
+      --muted: #71817b;
+      --green: #347b5d;
+      --green-dark: #286448;
+      --paper: #fff;
+      --canvas: #f4f7f3;
+      --line: #e7ede7;
+      --soft: #edf5ee;
+      --red: #b5473d;
+      --shadow: 0 16px 45px rgba(33, 69, 51, .08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); min-height: 100vh; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { padding: max(18px, env(safe-area-inset-top)) 20px 12px; }
+    .topbar-inner, main { width: min(100% - 32px, 760px); margin: 0 auto; }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .brand-icon { width: 44px; height: 44px; border-radius: 15px; background: #e4f0e5; display: grid; place-items: center; font-size: 23px; }
+    .brand h1 { font-size: 18px; line-height: 1.2; margin: 0; letter-spacing: -.35px; }
+    .brand p { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+    main { padding: 12px 0 max(34px, env(safe-area-inset-bottom)); }
+    .timer-card { background: #eaf3e9; border: 1px solid #deebdd; border-radius: 24px; padding: 22px 22px 20px; margin: 4px 0 16px; position: relative; overflow: hidden; }
+    .timer-card::after { content: "🐾"; position: absolute; font-size: 90px; opacity: .11; right: 20px; top: 4px; transform: rotate(-18deg); }
+    .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 1.1px; color: #537664; font-weight: 750; }
+    .timer-value { font-variant-numeric: tabular-nums; letter-spacing: -2px; font-size: clamp(42px, 12vw, 58px); font-weight: 760; line-height: 1.15; margin: 7px 0 3px; }
+    .timer-message { color: #526d5d; font-size: 14px; margin: 0; }
+    .timer-card.due { background: #fff0ed; border-color: #f2d8d2; }
+    .timer-card.due .eyebrow, .timer-card.due .timer-message { color: var(--red); }
+    .timer-card.due .timer-value { color: #a93e35; }
+    .notice { padding: 14px 16px; border-radius: 16px; margin: 0 0 16px; font-size: 13px; line-height: 1.5; }
+    .notice.setup { background: #fff7e6; border: 1px solid #f0e4c7; color: #735827; }
+    .notice a { color: #486c45; font-weight: 700; }
+    .notice[hidden] { display: none; }
+    .card { background: var(--paper); border: 1px solid #edf0ec; border-radius: 21px; padding: 21px; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .section-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 17px; }
+    h2 { font-size: 17px; margin: 0; letter-spacing: -.25px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+    .field { min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    label { display: block; font-size: 12px; color: #52635b; font-weight: 680; margin: 0 0 7px; }
+    input, select, textarea { width: 100%; min-height: 47px; border: 1px solid #e0e8e1; border-radius: 12px; background: #fbfcfa; color: var(--ink); padding: 11px 12px; outline: none; }
+    textarea { resize: vertical; min-height: 76px; }
+    input:focus, select:focus, textarea:focus { border-color: #78a88a; box-shadow: 0 0 0 3px rgba(85, 146, 104, .12); }
+    .hint { font-size: 11px; color: var(--muted); font-weight: 450; }
+    .primary { width: 100%; border: 0; border-radius: 13px; min-height: 50px; padding: 12px 16px; color: #fff; background: var(--green); font-weight: 750; display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 17px; transition: background .15s, transform .15s; }
+    .primary:hover { background: var(--green-dark); }
+    .primary:active { transform: scale(.99); }
+    .primary:disabled { opacity: .72; cursor: wait; }
+    .spinner { display: none; width: 17px; height: 17px; border: 2px solid rgba(255,255,255,.45); border-top-color: white; border-radius: 50%; animation: spin .75s linear infinite; }
+    .primary.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status { min-height: 18px; margin: 10px 0 0; color: var(--muted); text-align: center; font-size: 12px; }
+    .status.error { color: var(--red); }
+    .small-button { min-height: 36px; padding: 8px 11px; border: 1px solid var(--line); background: #fff; color: #476653; border-radius: 10px; font-weight: 650; font-size: 12px; white-space: nowrap; }
+    .small-button:disabled { opacity: .65; }
+    .history-list { list-style: none; margin: 0; padding: 0; }
+    .entry { display: grid; grid-template-columns: 42px 1fr auto; align-items: start; gap: 12px; padding: 15px 0; border-top: 1px solid #edf0ec; }
+    .entry:first-child { border-top: 0; padding-top: 0; }
+    .entry-icon { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--soft); font-size: 18px; }
+    .entry-title { font-size: 14px; font-weight: 720; margin: 2px 0 5px; }
+    .entry-details { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .entry-dose { font-size: 14px; font-weight: 760; white-space: nowrap; padding-top: 2px; }
+    .sync-tag { display: inline-flex; margin-top: 6px; font-size: 10px; padding: 3px 7px; border-radius: 20px; background: #fff5df; color: #816229; }
+    .sync-tag.synced { background: #eaf4eb; color: #39724e; }
+    .empty { color: var(--muted); text-align: center; padding: 18px 8px 8px; font-size: 13px; }
+    details.settings { margin-top: 2px; }
+    details.settings summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; color: #52635b; font-size: 13px; font-weight: 700; padding: 4px 0 12px; }
+    details.settings summary::-webkit-details-marker { display: none; }
+    .settings-help { font-size: 11px; line-height: 1.55; color: var(--muted); margin: 9px 0 0; }
+    .footer-note { text-align: center; color: #87928c; font-size: 11px; line-height: 1.5; padding: 2px 8px 0; }
+    @media (min-width: 620px) { .topbar { padding-top: 28px; } main { padding-top: 18px; } .card { padding: 24px; } }
+    @media (max-width: 390px) { .card { padding: 17px; } .form-grid { gap: 12px 9px; } .entry { gap: 9px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner brand">
+      <div class="brand-icon" aria-hidden="true">🐶</div>
+      <div>
+        <h1>Инсулин-пёс</h1>
+        <p>Дневник заботы о вашем питомце</p>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="timer-card" id="timerCard" aria-live="polite" aria-label="Время после последней инъекции">
+      <div class="eyebrow">До следующей инъекции</div>
+      <div class="timer-value" id="timerValue">12:00:00</div>
+      <p class="timer-message" id="timerMessage">Добавьте первую запись, чтобы запустить таймер</p>
+    </section>
+
+    <aside class="notice setup" id="setupNotice">
+      <strong>Подключите Google Таблицу</strong>, чтобы хранить историю и синхронизировать её между устройствами.
+      <a href="#settings">Открыть настройки</a> ·
+      <a href="https://github.com/Con131/dog-insulin-tracker#быстрый-запуск" target="_blank" rel="noopener">Инструкция по настройке</a>
+    </aside>
+
+    <section class="card" aria-labelledby="formTitle">
+      <div class="section-heading"><h2 id="formTitle">Новая инъекция</h2></div>
+      <form id="injectionForm">
+        <div class="form-grid">
+          <div class="field full">
+            <label for="injectedAt">Дата и время</label>
+            <input id="injectedAt" name="injectedAt" type="datetime-local" required>
+          </div>
+          <div class="field">
+            <label for="dose">Доза инсулина, ЕД</label>
+            <input id="dose" name="dose" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="Например, 2.5" required>
+          </div>
+          <div class="field">
+            <label for="glucose">Сахар, ммоль/л <span class="hint">(необязательно)</span></label>
+            <input id="glucose" name="glucose" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Например, 8.2">
+          </div>
+          <div class="field">
+            <label for="site">Зона инъекции</label>
+            <select id="site" name="site" required>
+              <option value="Холка">Холка</option>
+              <option value="Левый бок">Левый бок</option>
+              <option value="Правый бок">Правый бок</option>
+              <option value="Левое бедро">Левое бедро</option>
+              <option value="Правое бедро">Правое бедро</option>
+              <option value="Другая">Другая</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="meal">Приём пищи</label>
+            <select id="meal" name="meal" required>
+              <option value="Съела всё">Съела всё</option>
+              <option value="Съела часть">Съела часть</option>
+              <option value="Отказалась">Отказалась</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="note">Примечание <span class="hint">(необязательно)</span></label>
+            <textarea id="note" name="note" maxlength="1000" placeholder="Самочувствие, особенности инъекции…"></textarea>
+          </div>
+        </div>
+        <button class="primary" id="saveButton" type="submit">
+          <span class="spinner" aria-hidden="true"></span><span id="saveLabel">Записать</span>
+        </button>
+        <p class="status" id="formStatus" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="historyTitle">
+      <div class="section-heading">
+        <h2 id="historyTitle">История инъекций</h2>
+        <button class="small-button" id="refreshButton" type="button">↻ Обновить</button>
+      </div>
+      <ul class="history-list" id="historyList"></ul>
+      <p class="empty" id="emptyMessage">Записей пока нет. Первая появится здесь.</p>
+    </section>
+
+    <section class="card" id="settings">
+      <details class="settings" id="settingsDetails">
+        <summary><span>Настройки подключения</span><span aria-hidden="true">⌄</span></summary>
+        <div class="field">
+          <label for="scriptUrl">URL веб-приложения Google Apps Script</label>
+          <input id="scriptUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="url">
+        </div>
+        <button class="small-button" id="saveSettings" type="button" style="margin-top:10px">Сохранить URL</button>
+        <p class="settings-help">Ссылка хранится только в localStorage этого браузера. Используйте URL, заканчивающийся на <code>/exec</code>. В Apps Script разверните веб-приложение с доступом «Все» (данные таблицы тогда доступны всем, у кого есть URL).</p>
+      </details>
+    </section>
+    <p class="footer-note">Дневник помогает вести записи, но не заменяет рекомендации ветеринарного врача. Дозировку определяет только ваш ветеринар.</p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // Все данные приложения, включая очередь на отправку, хранятся локально.
+      const KEYS = {
+        url: "dogInsulin.scriptUrl.v1",
+        entries: "dogInsulin.entries.v1",
+        pending: "dogInsulin.pending.v1"
+      };
+      const form = document.getElementById("injectionForm");
+      const list = document.getElementById("historyList");
+      const status = document.getElementById("formStatus");
+      const saveButton = document.getElementById("saveButton");
+      const refreshButton = document.getElementById("refreshButton");
+      const scriptUrlInput = document.getElementById("scriptUrl");
+      const setupNotice = document.getElementById("setupNotice");
+      let entries = readStorage(KEYS.entries, []);
+      let pending = readStorage(KEYS.pending, []);
+      let busy = false;
+
+      function readStorage(key, fallback) {
+        try {
+          const value = JSON.parse(localStorage.getItem(key) || "null");
+          return Array.isArray(value) ? value : fallback;
+        } catch (error) {
+          console.error("Не удалось прочитать локальные записи:", error);
+          return fallback;
+        }
+      }
+
+      function saveStorage() {
+        try {
+          localStorage.setItem(KEYS.entries, JSON.stringify(entries));
+          localStorage.setItem(KEYS.pending, JSON.stringify(pending));
+        } catch (error) {
+          setStatus("Не удалось сохранить запись на устройстве. Проверьте свободное место.", true);
+          throw error;
+        }
+      }
+
+      function endpoint() {
+        const raw = localStorage.getItem(KEYS.url) || "";
+        if (!raw) return "";
+        try {
+          const url = new URL(raw);
+          if (url.protocol !== "https:" || url.hostname !== "script.google.com" || !url.pathname.endsWith("/exec")) return "";
+          return url.href;
+        } catch (_) {
+          return "";
+        }
+      }
+
+      function localDateTimeValue(date) {
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      }
+
+      function setStatus(message, isError) {
+        status.textContent = message;
+        status.classList.toggle("error", Boolean(isError));
+      }
+
+      function escaped(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[char]);
+      }
+
+      function sortedEntries() {
+        return entries.slice().sort((a, b) => new Date(b.injectedAt) - new Date(a.injectedAt));
+      }
+
+      function render() {
+        const sorted = sortedEntries();
+        list.replaceChildren();
+        document.getElementById("emptyMessage").hidden = sorted.length > 0;
+        sorted.forEach((entry) => {
+          const li = document.createElement("li");
+          li.className = "entry";
+          const date = new Date(entry.injectedAt);
+          const dateText = Number.isNaN(date.getTime()) ? "Дата не указана" : date.toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+          const details = [
+            entry.site,
+            entry.glucose !== "" && entry.glucose != null ? `Сахар ${escaped(entry.glucose)} ммоль/л` : "",
+            entry.meal,
+            entry.note ? escaped(entry.note) : ""
+          ].filter(Boolean).join(" · ");
+          const isPending = pending.some((item) => item.id === entry.id);
+          li.innerHTML = `<div class="entry-icon" aria-hidden="true">💉</div>
+            <div><div class="entry-title">${escaped(dateText)}</div>
+            <div class="entry-details">${details}</div>
+            <span class="sync-tag ${isPending ? "" : "synced"}">${isPending ? "Ожидает синхронизации" : "Сохранено"}</span></div>
+            <div class="entry-dose">${escaped(entry.dose)} ЕД</div>`;
+          list.append(li);
+        });
+        updateTimer();
+        setupNotice.hidden = Boolean(endpoint());
+      }
+
+      function updateTimer() {
+        const card = document.getElementById("timerCard");
+        const value = document.getElementById("timerValue");
+        const message = document.getElementById("timerMessage");
+        const latest = sortedEntries()[0];
+        card.classList.remove("due");
+        if (!latest) {
+          value.textContent = "12:00:00";
+          message.textContent = "Добавьте первую запись, чтобы запустить таймер";
+          return;
+        }
+        const timestamp = new Date(latest.injectedAt).getTime();
+        if (!Number.isFinite(timestamp)) {
+          value.textContent = "--:--:--";
+          message.textContent = "Проверьте дату и время последней записи";
+          return;
+        }
+        const remaining = timestamp + 12 * 60 * 60 * 1000 - Date.now();
+        if (remaining <= 0) {
+          card.classList.add("due");
+          value.textContent = "00:00:00";
+          message.textContent = "Пора делать укол! Следуйте плану ветеринарного врача.";
+          return;
+        }
+        const seconds = Math.floor(remaining / 1000);
+        value.textContent = [Math.floor(seconds / 3600), Math.floor(seconds % 3600 / 60), seconds % 60]
+          .map((part) => String(part).padStart(2, "0")).join(":");
+        message.textContent = `С последней инъекции: ${new Date(timestamp).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+      }
+
+      function jsonpRead() {
+        return new Promise((resolve, reject) => {
+          const url = endpoint();
+          if (!url) return reject(new Error("Сначала укажите корректный URL веб-приложения в настройках."));
+          const callbackName = `__insulinCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          const script = document.createElement("script");
+          const requestUrl = new URL(url);
+          const cleanup = () => {
+            clearTimeout(timer);
+            delete window[callbackName];
+            script.remove();
+          };
+          const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error("Таблица не ответила. Проверьте соединение и URL."));
+          }, 15000);
+          window[callbackName] = (data) => {
+            cleanup();
+            if (!data || !Array.isArray(data.entries)) return reject(new Error(data && data.error ? data.error : "Сервер вернул неверный ответ."));
+            resolve(data.entries);
+          };
+          requestUrl.searchParams.set("callback", callbackName);
+          requestUrl.searchParams.set("_", String(Date.now()));
+          script.src = requestUrl.href;
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("Не удалось загрузить данные из таблицы."));
+          };
+          document.head.append(script);
+        });
+      }
+
+      async function refreshFromSheet() {
+        const remote = await jsonpRead();
+        const byId = new Map(entries.map((entry) => [entry.id, entry]));
+        remote.forEach((entry) => {
+          if (entry && entry.id) byId.set(entry.id, entry);
+        });
+        entries = Array.from(byId.values());
+        const remoteIds = new Set(remote.map((entry) => entry && entry.id).filter(Boolean));
+        pending = pending.filter((item) => !remoteIds.has(item.id));
+        saveStorage();
+        render();
+        return remoteIds;
+      }
+
+      async function sendPending() {
+        const url = endpoint();
+        if (!url || !navigator.onLine || pending.length === 0 || busy) return;
+        busy = true;
+        saveButton.classList.add("loading");
+        saveButton.disabled = true;
+        document.getElementById("saveLabel").textContent = "Синхронизация…";
+        try {
+          // text/plain не вызывает CORS preflight. opaque-ответ проверяем повторным JSONP-чтением.
+          for (const entry of pending.slice()) {
+            await fetch(url, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify(entry)
+            });
+          }
+          const ids = await refreshFromSheet();
+          const unsent = pending.length;
+          setStatus(unsent ? "Запись сохранена на устройстве и ожидает подтверждения таблицы." : "Запись синхронизирована с Google Таблицей.", unsent > 0);
+        } catch (error) {
+          setStatus(`Запись сохранена на устройстве; синхронизация отложена. ${error.message}`, true);
+        } finally {
+          busy = false;
+          saveButton.classList.remove("loading");
+          saveButton.disabled = false;
+          document.getElementById("saveLabel").textContent = "Записать";
+          render();
+        }
+      }
+
+      document.getElementById("injectedAt").value = localDateTimeValue(new Date());
+      scriptUrlInput.value = localStorage.getItem(KEYS.url) || "";
+      document.getElementById("saveSettings").addEventListener("click", () => {
+        const raw = scriptUrlInput.value.trim();
+        if (raw) {
+          try {
+            const parsed = new URL(raw);
+            if (parsed.protocol !== "https:" || parsed.hostname !== "script.google.com" || !parsed.pathname.endsWith("/exec")) {
+              throw new Error();
+            }
+          } catch (_) {
+            setStatus("Укажите HTTPS URL веб-приложения Google Apps Script, заканчивающийся на /exec.", true);
+            return;
+          }
+        }
+        localStorage.setItem(KEYS.url, raw);
+        setStatus(raw ? "URL сохранён в этом браузере." : "URL подключения удалён.", false);
+        render();
+        if (raw && pending.length) sendPending();
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        const data = new FormData(form);
+        const entry = {
+          id: typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          injectedAt: new Date(String(data.get("injectedAt"))).toISOString(),
+          dose: Number(data.get("dose")),
+          glucose: data.get("glucose") === "" ? "" : Number(data.get("glucose")),
+          site: String(data.get("site")),
+          meal: String(data.get("meal")),
+          note: String(data.get("note")).trim()
+        };
+        if (!Number.isFinite(entry.dose) || entry.dose <= 0 || (entry.glucose !== "" && (!Number.isFinite(entry.glucose) || entry.glucose < 0))) {
+          setStatus("Проверьте дозу и уровень сахара.", true);
+          return;
+        }
+        entries.push(entry);
+        pending.push(entry);
+        try {
+          saveStorage();
+        } catch (_) {
+          entries = entries.filter((item) => item.id !== entry.id);
+          pending = pending.filter((item) => item.id !== entry.id);
+          render();
+          return;
+        }
+        render();
+        form.reset();
+        document.getElementById("injectedAt").value = localDateTimeValue(new Date());
+        document.getElementById("site").value = "Холка";
+        document.getElementById("meal").value = "Съела всё";
+        setStatus(endpoint() ? "Запись добавлена. Отправляем в Google Таблицу…" : "Запись сохранена на устройстве. Добавьте URL таблицы в настройках для синхронизации.", false);
+        await sendPending();
+      });
+
+      refreshButton.addEventListener("click", async () => {
+        refreshButton.disabled = true;
+        refreshButton.textContent = "Загрузка…";
+        try {
+          await refreshFromSheet();
+          setStatus("История обновлена.", false);
+          if (pending.length) await sendPending();
+        } catch (error) {
+          setStatus(`${error.message} Локальная история сохранена.`, true);
+        } finally {
+          refreshButton.disabled = false;
+          refreshButton.textContent = "↻ Обновить";
+        }
+      });
+      window.addEventListener("online", () => sendPending());
+      setInterval(updateTimer, 1000);
+      render();
+      if (endpoint()) refreshFromSheet().catch((error) => setStatus(`${error.message} Показаны локальные записи.`, true));
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch((error) => console.warn("PWA offline worker is unavailable:", error)));
+      }
+    })();
+  </script>
+</body>
+</html>

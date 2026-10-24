@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "Инсулин-пёс — дневник инъекций",
+  "short_name": "Инсулин-пёс",
+  "description": "Дневник инъекций инсулина для вашей собаки",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f7f3",
+  "theme_color": "#f5f8f4",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
