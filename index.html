@@ -68,12 +68,18 @@
     .eyebrow { font-size: 14px; letter-spacing: .1px; color: var(--md-sys-color-on-primary-container); font-weight: 650; }
     .timer-value { font-variant-numeric: tabular-nums; letter-spacing: -2.5px; font-size: clamp(46px, 12vw, 64px); font-weight: 760; line-height: 1.16; margin: 9px 0 6px; }
     .timer-message { color: var(--md-sys-color-on-primary-container); opacity: .82; font-size: 14px; margin: 0; max-width: 80%; }
-    .timer-notification { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; }
+    .timer-actions { margin-top: 16px; position: relative; z-index: 1; }
+    .timer-actions summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: fit-content; min-height: 42px; padding: 10px 15px; border-radius: var(--md-shape-corner-full); background: rgba(255, 255, 255, .66); color: var(--md-sys-color-on-primary-container); font-size: 13px; font-weight: 680; }
+    .timer-actions summary::-webkit-details-marker { display: none; }
+    .timer-actions summary::after { content: "⌄"; font-size: 17px; line-height: 1; transition: transform .18s var(--md-motion-standard); }
+    .timer-actions[open] summary::after { transform: rotate(180deg); }
+    .timer-actions-content { display: grid; gap: 8px; padding-top: 10px; }
+    .timer-notification { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
     .notification-button { min-height: 38px; padding: 8px 15px; background: rgba(255, 255, 255, .66); color: var(--md-sys-color-on-primary-container); }
     .notification-button[hidden] { display: none; }
     .notification-help { flex: 1 1 180px; margin: 0; font-size: 11px; line-height: 1.45; opacity: .8; }
-    .app-update { margin-top: 12px; }
-    .app-update-status { margin: 7px 0 0; font-size: 11px; line-height: 1.4; }
+    .app-update { justify-self: start; }
+    .app-update-status { margin: 0; font-size: 11px; line-height: 1.4; }
     .timer-card.due { background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); }
     .timer-card.due .eyebrow, .timer-card.due .timer-message, .timer-card.due .timer-value { color: var(--md-sys-color-on-error-container); }
     .notice { padding: 16px 18px; border-radius: var(--md-shape-corner-medium); margin: 0 0 18px; font-size: 13px; line-height: 1.6; }
@@ -247,12 +253,17 @@
       <div class="eyebrow">До следующей инъекции</div>
       <div class="timer-value" id="timerValue">12:00:00</div>
       <p class="timer-message" id="timerMessage">Добавьте первую запись, чтобы запустить таймер</p>
-      <div class="timer-notification" id="timerNotification" hidden>
-        <button class="small-button notification-button" id="notificationButton" type="button">Включить уведомление</button>
-        <p class="notification-help" id="notificationHelp" aria-live="polite"></p>
-      </div>
-      <button class="small-button app-update" id="checkAppUpdate" type="button">Проверить обновления приложения</button>
-      <p class="app-update-status" id="appUpdateStatus" role="status" aria-live="polite"></p>
+      <details class="timer-actions" id="timerNotification" hidden>
+        <summary>Настройки и действия</summary>
+        <div class="timer-actions-content">
+          <div class="timer-notification">
+            <button class="small-button notification-button" id="notificationButton" type="button">Включить уведомления</button>
+            <p class="notification-help" id="notificationHelp" aria-live="polite"></p>
+          </div>
+          <button class="small-button app-update" id="checkAppUpdate" type="button">Проверить обновления приложения</button>
+          <p class="app-update-status" id="appUpdateStatus" role="status" aria-live="polite"></p>
+        </div>
+      </details>
     </section>
 
     <section class="card" aria-labelledby="formTitle">
