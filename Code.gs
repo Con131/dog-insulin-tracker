@@ -9,14 +9,14 @@
  * POST as text/plain (a CORS "simple request"), and verifies writes by reading
  * the record back. IDs make retrying an offline queue safe and idempotent.
  */
+// ID from the spreadsheet the user shared. This lets the script be deployed as
+// either a spreadsheet-bound project or a standalone Apps Script project.
+const SPREADSHEET_ID = '10HzH-zEU-aO1zhxWQqrTx93quhEtbF1nBT7pZuZAT04';
 const SHEET_NAME = 'Инъекции';
 const HEADERS = ['ID', 'Дата и время (ISO)', 'Доза (ЕД)', 'Сахар (ммоль/л)', 'Зона', 'Приём пищи', 'Примечание'];
 
 function setupTrackingSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  if (!spreadsheet) {
-    throw new Error('Скрипт должен быть привязан к Google Таблице.');
-  }
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   let sheet = spreadsheet.getSheetByName(SHEET_NAME);
   if (!sheet) sheet = spreadsheet.insertSheet(SHEET_NAME);
   if (sheet.getLastRow() === 0) {
@@ -99,8 +99,7 @@ function doGet(e) {
 }
 
 function getSheet_() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  if (!spreadsheet) throw new Error('Не найдена привязанная Google Таблица.');
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = spreadsheet.getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error('Лист не найден. Сначала запустите setupTrackingSheet().');
   return sheet;
