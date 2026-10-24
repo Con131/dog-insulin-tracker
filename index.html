@@ -396,7 +396,7 @@
           script.src = requestUrl.href;
           script.onerror = () => {
             cleanup();
-            reject(new Error("Не удалось загрузить данные из таблицы."));
+            reject(new Error("Google Apps Script не открыл URL. Проверьте полный адрес /exec и разверните веб-приложение с доступом «Все»."));
           };
           document.head.append(script);
         });
